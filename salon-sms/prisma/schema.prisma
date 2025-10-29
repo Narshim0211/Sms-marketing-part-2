@@ -1,0 +1,138 @@
+// Prisma schema for SalonSMS MVP
+// Using SQLite for local development
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Salon {
+  id          String   @id @default(cuid())
+  name        String
+  senderId    String?
+  smsProvider String?  // "stub" | "twilio"
+
+  clients     Client[]
+  campaigns   Campaign[]
+  templates   MessageTemplate[]
+  automations Automation[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Client {
+  id             String   @id @default(cuid())
+  salon          Salon?   @relation(fields: [salonId], references: [id])
+  salonId        String?
+
+  firstName      String?
+  lastName       String?
+  phone          String   @unique
+  email          String?
+
+  tags           String[] @default([])
+  service        String?
+  lastVisitDate  DateTime?
+  optedIn        Boolean  @default(true)
+
+  messages       Message[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  salon       Salon?   @relation(fields: [salonId], references: [id])
+  salonId     String?
+
+  name        String
+  messageText String
+  status      CampaignStatus @default(DRAFT)
+  scheduledAt DateTime?
+
+  messages    Message[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum CampaignStatus {
+  DRAFT
+  QUEUED
+  SCHEDULED
+  SENT
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  salon     Salon?   @relation(fields: [salonId], references: [id])
+  salonId   String?
+
+  name      String
+  content   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId String?
+
+  client     Client   @relation(fields: [clientId], references: [id])
+  clientId   String
+
+  body       String
+  status     MessageStatus
+  externalId String?
+  error      String?
+
+  createdAt  DateTime @default(now())
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+model Automation {
+  id        String   @id @default(cuid())
+  salon     Salon?   @relation(fields: [salonId], references: [id])
+  salonId   String?
+
+  type      AutomationType
+  config    Json
+  enabled   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AutomationType {
+  REMINDER
+  WINBACK
+  REBOOK
+}
+
+model DeliveryEvent {
+  id        String   @id @default(cuid())
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String
+  type      DeliveryEventType
+  timestamp DateTime @default(now())
+}
+
+enum DeliveryEventType {
+  DELIVERED
+  FAILED
+  CLICKED
+}
